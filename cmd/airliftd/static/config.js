@@ -43,13 +43,8 @@
 		json('POST', '/purge/all', null, purgeDone);
 	}
 
-	function purgeThumbs() {
-		json('POST', '/purge/thumbs', null, purgeDone);
-	}
-
 	function setupOverview() {
 		$('#purge-all-link').addEventListener('click', purgeAll, false);
-		$('#purge-thumbs-link').addEventListener('click', purgeThumbs, false);
 	}
 
 	function setupConfig() {

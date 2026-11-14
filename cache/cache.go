@@ -2,6 +2,7 @@
 package cache
 
 import (
+	"errors"
 	"io"
 	"log"
 	"os"
@@ -104,8 +105,23 @@ func (c *Cache) Stat(id string) os.FileInfo {
 	return c.files[id]
 }
 
+// FileInfo returns the os.FileInfo associated with a file without locking. The
+// caller must already hold the cache's (read) lock. This exists so a caller
+// iterating many ids under a single RLock does not recursively re-lock (which
+// can deadlock a sync.RWMutex when a writer is waiting).
+func (c *Cache) FileInfo(id string) os.FileInfo {
+	return c.files[id]
+}
+
 // Put copies a file to disk with the given filename and returns its hash.
 func (c *Cache) Put(content io.Reader, filename string, conf Config) (string, error) {
+	// Defense in depth: never trust the caller's filename to stay inside c.dir.
+	// filepath.Base strips all directory components, neutralizing path
+	// traversal ("../../etc/x" -> "x") regardless of how Put is called.
+	filename = filepath.Base(filename)
+	if filename == "" || filename == "." || filename == ".." || filename == string(filepath.Separator) {
+		return "", errors.New("invalid filename")
+	}
 	os.MkdirAll(c.dir, 0700)
 	dest := filepath.Join(c.dir, filename)
 	destFile, err := os.OpenFile(dest, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
